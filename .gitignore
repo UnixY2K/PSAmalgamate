@@ -485,3 +485,7 @@ $RECYCLE.BIN/
 
 # Ignore .vscode folder
 .vscode/
+
+# Ignore generated files
+output.ps1
+output.psm1
