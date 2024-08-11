@@ -24,8 +24,13 @@ class Module
                 case string l when l.StartsWith('#'):
                     continue;
                 case string l when l.StartsWith("using module"):
-                    string modulePath = l.Substring("using module".Length);
-                    Console.WriteLine(modulePath);
+                    string modulePath = l["using module".Length..].Trim();
+                    // check if the module is relative to the current file
+                    if (modulePath.StartsWith('.'))
+                    {
+                        modulePath = Path.GetFullPath(Path.Combine(workingDirectory.FullName, modulePath));
+                        Console.WriteLine(modulePath);
+                    }
                     break;
                 default:
                     break;
