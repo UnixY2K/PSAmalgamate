@@ -1,4 +1,34 @@
 ﻿using System.CommandLine;
+using PSAmalgamate;
+
+static void WriteError(Object? error)
+{
+    // get the current console color
+    var originalColor = Console.ForegroundColor;
+    Console.ForegroundColor = ConsoleColor.Red;
+    Console.Error.WriteLine(error);
+    Console.ForegroundColor = originalColor;
+}
+
+static void WriteModuleDeps(Module module, string indent = "", bool isLast = true)
+{
+    var marker = isLast ? "└──" : "├──";
+    var originalColor = Console.ForegroundColor;
+    Console.ForegroundColor = ConsoleColor.Green;
+    Console.Write(indent);
+    Console.Write(marker);
+    Console.ForegroundColor = originalColor;
+    Console.Write(module.Name);
+    Console.WriteLine();
+
+
+    indent += isLast ? "   " : "│  ";
+
+    var lastChild = module.RequiredModules.LastOrDefault();
+
+    foreach (var child in module.RequiredModules)
+        WriteModuleDeps(child, indent, child == lastChild);
+}
 
 
 var fileOption = new Option<FileInfo?>(
@@ -24,7 +54,8 @@ var fileOption = new Option<FileInfo?>(
         }
         return new FileInfo(filePath);
     }
-    ){ IsRequired = true };
+    )
+{ IsRequired = true };
 fileOption.AddAlias("-f");
 
 
@@ -46,16 +77,19 @@ var outputOption = new Option<FileInfo?>(
         string? filePath = result.Tokens.Single().Value;
         return new FileInfo(filePath);
     }
-    ){ IsRequired = true };
+    )
+{ IsRequired = true };
 outputOption.AddAlias("-o");
 
 var directoryOption = new Option<DirectoryInfo?>(
-    name: "--directory", 
+    name: "--directory",
     description: "working directory where the script search will resolve to",
     isDefault: true,
-    parseArgument: result => {
-        switch(result.Tokens.Count){
-            case 0: 
+    parseArgument: result =>
+    {
+        switch (result.Tokens.Count)
+        {
+            case 0:
                 result.ErrorMessage = "no working directory specified";
                 return null;
             case > 1:
@@ -63,11 +97,12 @@ var directoryOption = new Option<DirectoryInfo?>(
                 return null;
         }
         string workingDirectory = result.Tokens.Single().Value;
-        if(!Directory.Exists(workingDirectory)){
+        if (!Directory.Exists(workingDirectory))
+        {
             result.ErrorMessage = "the specified working directory is not a valid directory";
             return null;
         }
-        
+
         return new DirectoryInfo(Path.GetFullPath(workingDirectory));
     }
     );
@@ -93,15 +128,25 @@ rootCommand.SetHandler(async (file, output, directory) =>
     // iterate over the file and find the modules
     var modules = new List<string>();
 
-    Console.WriteLine("included modules");
-    Module rootFile = await Module.LoadFile(file, directory);
-    Console.WriteLine(rootFile.Name);
+    Console.WriteLine("loading module");
+    Module rootFile;
+    try
+    {
+        rootFile = await Module.LoadFile(file, directory);
+    }
+    catch (Exception ex)
+    {
+        WriteError("an error ocurred while loading the file");
+        WriteError($"{ex.GetType().FullName}: {ex.Message}");
+        return;
+    }
+
+    WriteModuleDeps(rootFile);
 
     // truncate the file
     await File.WriteAllTextAsync(output.FullName, "");
 
 }, fileOption, outputOption, directoryOption);
-
 await rootCommand.InvokeAsync(args);
 
 return returnCode;

@@ -1,7 +1,5 @@
-using System.Reflection;
-using System.Threading.Tasks.Dataflow;
-
-class Module
+namespace PSAmalgamate;
+public class Module
 {
     private List<Module> _requiredModules = [];
     public required FileInfo FileInfo { get; set; }
@@ -28,8 +26,13 @@ class Module
                     // check if the module is relative to the current file
                     if (modulePath.StartsWith('.'))
                     {
-                        modulePath = Path.GetFullPath(Path.Combine(workingDirectory.FullName, modulePath));
-                        Console.WriteLine(modulePath);
+                        var resolvedModulePath = Path.GetFullPath(Path.Combine(workingDirectory.FullName, modulePath));
+                        // check if the file exist
+                        if(!File.Exists(resolvedModulePath)){
+                            throw new FileNotFoundException($"module not found in the following path: {resolvedModulePath}");
+                        }
+                        var subModule = await LoadFile(new(resolvedModulePath), workingDirectory);
+                        module.RequiredModules.Add(subModule);
                     }
                     break;
                 default:
