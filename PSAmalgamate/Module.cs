@@ -2,6 +2,7 @@ namespace PSAmalgamate;
 public class Module
 {
     private List<Module> _requiredModules = [];
+    internal List<String> _requiredModulePaths = [];
     public required FileInfo FileInfo { get; set; }
     public string Name { get => Path.GetFileNameWithoutExtension(FileInfo.Name); }
     public List<Module> RequiredModules { get => _requiredModules; }
@@ -12,6 +13,17 @@ public class Module
         {
             FileInfo = file
         };
+        var lines = await LoadRequiredModules(file, workingDirectory);
+        foreach (var modulePath in lines)
+        {
+            var subModule = await LoadFile(new(modulePath), workingDirectory);
+            module.RequiredModules.Add(subModule);
+        }
+        return module;
+    }
+    public static async Task<List<string>> LoadRequiredModules(FileInfo file, DirectoryInfo workingDirectory, bool onlyFiles = true)
+    {
+        List<string> modulelist = [];
         var lines = await File.ReadAllLinesAsync(file.FullName);
         foreach (var line in lines)
         {
@@ -28,17 +40,22 @@ public class Module
                     {
                         var resolvedModulePath = Path.GetFullPath(Path.Combine(workingDirectory.FullName, modulePath));
                         // check if the file exist
-                        if(!File.Exists(resolvedModulePath)){
+                        if (!File.Exists(resolvedModulePath))
+                        {
                             throw new FileNotFoundException($"module not found in the following path: {resolvedModulePath}");
                         }
-                        var subModule = await LoadFile(new(resolvedModulePath), workingDirectory);
-                        module.RequiredModules.Add(subModule);
+                        modulePath = resolvedModulePath;
+                        modulelist.Add(modulePath);
+                    }
+                    else if (!onlyFiles)
+                    {
+                        modulelist.Add(modulePath);
                     }
                     break;
                 default:
                     break;
             }
         }
-        return module;
+        return modulelist;
     }
 }

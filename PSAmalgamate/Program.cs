@@ -132,6 +132,7 @@ rootCommand.SetHandler(async (file, output, directory) =>
     Module rootFile;
     try
     {
+        var moduleList = await ModuleStore.LoadModuleList(file, directory);
         rootFile = await Module.LoadFile(file, directory);
     }
     catch (Exception ex)
@@ -145,6 +146,7 @@ rootCommand.SetHandler(async (file, output, directory) =>
 
     // truncate the file
     await File.WriteAllTextAsync(output.FullName, "");
+
 
 }, fileOption, outputOption, directoryOption);
 await rootCommand.InvokeAsync(args);
