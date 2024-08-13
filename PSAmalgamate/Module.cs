@@ -1,23 +1,31 @@
 namespace PSAmalgamate;
 public class Module
 {
-    private List<Module> _requiredModules = [];
-    internal List<String> _requiredModulePaths = [];
+    internal List<string> _requiredModulePaths = [];
     public required FileInfo FileInfo { get; set; }
     public string Name { get => Path.GetFileNameWithoutExtension(FileInfo.Name); }
-    public List<Module> RequiredModules { get => _requiredModules; }
+    public List<Module> RequiredModules { get; } = [];
+    public List<string> RequiredNativeModules { get; } = [];
 
-    public static async Task<Module> LoadFile(FileInfo file, DirectoryInfo workingDirectory)
+    public static async Task<Module> LoadModuleInfo(FileInfo file, DirectoryInfo workingDirectory)
     {
-        Module module = new()
+        var module = new Module()
         {
             FileInfo = file
         };
-        var lines = await LoadRequiredModules(file, workingDirectory);
-        foreach (var modulePath in lines)
+        var requiredModules = await LoadRequiredModules(file, workingDirectory, false);
+        foreach (var requiredModule in requiredModules)
         {
-            var subModule = await LoadFile(new(modulePath), workingDirectory);
-            module.RequiredModules.Add(subModule);
+            // check if the module is a native module or a script module
+            if (File.Exists(requiredModule))
+            {
+                module.RequiredModules.Add(await LoadModuleInfo(new FileInfo(requiredModule), workingDirectory));
+            }
+            else
+            {
+                module.RequiredNativeModules.Add(requiredModule);
+            }
+
         }
         return module;
     }

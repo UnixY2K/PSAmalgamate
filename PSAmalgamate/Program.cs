@@ -132,8 +132,8 @@ rootCommand.SetHandler(async (file, output, directory) =>
     Module rootFile;
     try
     {
-        var moduleList = await ModuleStore.LoadModuleList(file, directory);
-        rootFile = await Module.LoadFile(file, directory);
+        var moduleList = await ModuleStore.LoadModuleStore(file, directory);
+        rootFile = moduleList.Modules[file.FullName];
     }
     catch (Exception ex)
     {

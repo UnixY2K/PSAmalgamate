@@ -8,7 +8,7 @@ namespace PSAmalgamate
         internal Dictionary<string, Module> _modules = [];
         public Dictionary<string, Module> Modules { get => _modules; }
 
-        public static async Task<ModuleStore> LoadModuleList(FileInfo file, DirectoryInfo workingDirectory)
+        public static async Task<ModuleStore> LoadModuleStore(FileInfo file, DirectoryInfo workingDirectory)
         {
             ModuleStore modulelist = new();
             HashSet<string> unloadedModules = [file.FullName];
@@ -22,11 +22,7 @@ namespace PSAmalgamate
                         // ignore the element
                         continue;
                     }
-                    var currentModule = new Module()
-                    {
-                        FileInfo = new(unloadedModule)
-                    };
-                    currentModule._requiredModulePaths = await Module.LoadRequiredModules(currentModule.FileInfo, workingDirectory);
+                    var currentModule =await Module.LoadModuleInfo(new FileInfo(unloadedModule), workingDirectory);
                     modulelist._modules.Add(currentModule.FileInfo.FullName, currentModule);
                     foreach (var currentNextModule in currentModule._requiredModulePaths)
                     {
@@ -38,7 +34,20 @@ namespace PSAmalgamate
                 }
                 unloadedModules = nextUnloadedModules;
             }
+            modulelist.LoadDependencyTree();
             return modulelist;
+        }
+
+        public void LoadDependencyTree()
+        {
+            foreach (var module in _modules)
+            {
+                foreach (var requiredModule in module.Value._requiredModulePaths)
+                {
+                    // at this point all the required modules should be loaded
+                    module.Value.RequiredModules.Add(_modules[requiredModule]);
+                }
+            }
         }
 
     }
