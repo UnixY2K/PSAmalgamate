@@ -22,8 +22,8 @@ namespace PSAmalgamate
                         // ignore the element
                         continue;
                     }
-                    var currentModule =await Module.LoadModuleInfo(new FileInfo(unloadedModule), workingDirectory);
-                    modulelist._modules.Add(currentModule.FileInfo.FullName, currentModule);
+                    var currentModule = await Module.LoadModuleInfo(new FileInfo(unloadedModule), workingDirectory);
+                    modulelist._modules.Add(currentModule.FilePath, currentModule);
                     foreach (var currentNextModule in currentModule._requiredModulePaths)
                     {
                         if (!modulelist.Modules.ContainsKey(currentNextModule))
@@ -50,5 +50,12 @@ namespace PSAmalgamate
             }
         }
 
+        public List<Module> GetModuleHierarchy()
+        {
+            List<Module> modules = [];
+
+            return modules;
+
+        }
     }
 }

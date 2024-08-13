@@ -4,6 +4,7 @@ public class Module
     internal List<string> _requiredModulePaths = [];
     public required FileInfo FileInfo { get; set; }
     public string Name { get => Path.GetFileNameWithoutExtension(FileInfo.Name); }
+    public string FilePath {get => FileInfo.FullName; }
     public List<Module> RequiredModules { get; } = [];
     public List<string> RequiredNativeModules { get; } = [];
 
