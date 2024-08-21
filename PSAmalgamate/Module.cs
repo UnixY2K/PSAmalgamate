@@ -4,7 +4,7 @@ public class Module
     internal List<string> _requiredModulePaths = [];
     public required FileInfo FileInfo { get; set; }
     public string Name { get => Path.GetFileNameWithoutExtension(FileInfo.Name); }
-    public string FilePath {get => FileInfo.FullName; }
+    public string FilePath { get => FileInfo.FullName; }
     public List<Module> RequiredModules { get; } = [];
     public List<string> RequiredNativeModules { get; } = [];
 
@@ -67,4 +67,33 @@ public class Module
         }
         return modulelist;
     }
+
+
+    public List<Module> GetModuleHierarchy()
+    {
+        var addedModules = new HashSet<string>();
+        return GetModuleHierarchyRecursively(ref addedModules);
+    }
+
+    private List<Module> GetModuleHierarchyRecursively(ref HashSet<string> addedModules)
+    {
+        List<Module> modules = [];
+        foreach (var requiredModule in RequiredModules)
+        {
+            if (addedModules.Contains(requiredModule.FilePath))
+            {
+                continue;
+            }
+            modules.AddRange(requiredModule.GetModuleHierarchyRecursively(ref addedModules));
+            // if the same module is found again just ignore it
+            if (!addedModules.Contains(requiredModule.FilePath))
+            {
+                modules.Add(requiredModule);
+                addedModules.Add(requiredModule.FilePath);
+            }
+        }
+        return modules;
+    }
+
+
 }

@@ -29,7 +29,13 @@ static void WriteModuleDeps(Module module, string indent = "", bool isLast = tru
     foreach (var child in module.RequiredModules)
         WriteModuleDeps(child, indent, child == lastChild);
 }
-
+static void WriteModuleHierarchy(Module module){
+    var moduleHierarchy = module.GetModuleHierarchy();
+    foreach (var currentModule in moduleHierarchy)
+    {
+        Console.WriteLine($" - {currentModule.Name}");
+    }
+}
 
 var fileOption = new Option<FileInfo?>(
     name: "--file",
@@ -143,6 +149,7 @@ rootCommand.SetHandler(async (file, output, directory) =>
     }
 
     WriteModuleDeps(rootFile);
+    WriteModuleHierarchy(rootFile);
 
     // truncate the file
     await File.WriteAllTextAsync(output.FullName, "");

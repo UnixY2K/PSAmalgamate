@@ -49,13 +49,5 @@ namespace PSAmalgamate
                 }
             }
         }
-
-        public List<Module> GetModuleHierarchy()
-        {
-            List<Module> modules = [];
-
-            return modules;
-
-        }
     }
 }
