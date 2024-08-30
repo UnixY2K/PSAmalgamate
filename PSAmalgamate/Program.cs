@@ -162,13 +162,14 @@ rootCommand.SetHandler(async (file, output, directory) =>
 
         var rootModuleStream = Module.GetFilteredTextReader(rootFile);
         // iterate until reach code section
-        await foreach (var line in rootModuleStream.ReadLine())
+        await foreach (var line in rootModuleStream.ReadLineAsync())
         {
+            
+            await fs.WriteAsync(System.Text.Encoding.Unicode.GetBytes(line + '\n'));
             if (rootModuleStream.CodeSection)
             {
                 break;
             }
-            await fs.WriteAsync(System.Text.Encoding.Unicode.GetBytes(line + '\n'));
         }
 
 
@@ -177,7 +178,7 @@ rootCommand.SetHandler(async (file, output, directory) =>
         {
             await fs.WriteAsync(System.Text.Encoding.Unicode.GetBytes($"### module {currentModule.Name} ###\n"));
             var moduleStream = Module.GetFilteredTextReader(currentModule);
-            await foreach (var line in moduleStream.ReadLine())
+            await foreach (var line in moduleStream.ReadLineAsync())
             {
                 await fs.WriteAsync(System.Text.Encoding.Unicode.GetBytes(line + '\n'));
             }
@@ -187,7 +188,7 @@ rootCommand.SetHandler(async (file, output, directory) =>
         await fs.WriteAsync(System.Text.Encoding.Unicode.GetBytes("### main file code section ###\n"));
 
         // now continue with the remaining code section
-        await foreach (var line in rootModuleStream.ReadLine())
+        await foreach (var line in rootModuleStream.ReadLineAsync())
         {
             await fs.WriteAsync(System.Text.Encoding.Unicode.GetBytes(line + '\n'));
         }

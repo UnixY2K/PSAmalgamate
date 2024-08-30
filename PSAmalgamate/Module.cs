@@ -1,5 +1,5 @@
 
-using System.Security.Cryptography.X509Certificates;
+using PSAmalgamate.Utils;
 
 namespace PSAmalgamate;
 public class Module
@@ -105,54 +105,69 @@ public class Module
 
     public class ModuleReader
     {
-        private readonly StreamReader FileStream;
+        PeekableStreamReaderAdapter peekReader;
         public bool CodeSection { get; private set; } = false;
         private bool paramSection = false;
 
         internal ModuleReader(FileInfo fileInfo)
         {
-            FileStream = File.OpenText(fileInfo.FullName);
+            var fileStream = File.OpenText(fileInfo.FullName);
+            peekReader = new(fileStream);
         }
 
-        public async IAsyncEnumerable<string> ReadLine()
+        public async IAsyncEnumerable<string> ReadLineAsync()
         {
             // read the file line by line
-            while (!FileStream.EndOfStream)
+            
+            while (!peekReader.EndOfStream)
             {
-                var line = await FileStream.ReadLineAsync()??"";
-                var tline = line.TrimStart();
-                if(paramSection){
-                    if(tline.StartsWith(')')){
-                        yield return line;
+                var line = await peekReader.ReadLineAsync() ?? "";
+                var tLine = line.TrimStart();
+                if (paramSection)
+                {
+                    yield return line;
+                    if (tLine.StartsWith(')'))
+                    {
                         paramSection = false;
                         CodeSection = true;
+                    }
+                    continue;
+                }
+                if (!CodeSection)
+                {
+                    // peek ahead to check if the next line is a code section
+                    string pLine = await peekReader.PeekLineAsync() ?? "";
+                    string ptLine = pLine.TrimStart();
+
+                    // for now we will only support params like this
+                    //  param(
+                    //      ***
+                    //  )
+                    // this way it is not required to write a parser for the parameter section
+                    if(ptLine.StartsWith("param(")){
+                        paramSection = true;
                         continue;
                     }
+
+                    if (!(ptLine.StartsWith("using module") || ptLine.StartsWith('#') || ptLine.Length == 0))
+                    {
+                        CodeSection = true;
+                    }
                 }
-                if (tline.StartsWith("using module"))
+                if (tLine.StartsWith("using module"))
                 {
                     // skip modules
                     continue;
                 }
-                else if(tline.StartsWith('#'))
+                else if (tLine.StartsWith('#'))
                 {
                     // skip requires section, they should be handled outside here
-                    if(tline.StartsWith("#requires"))
+                    if (tLine.StartsWith("#requires"))
                     {
                         continue;
                     }
                     // return comments here as they are not part of the code section
                     yield return line;
-                }
-                // for now we will only support params like this
-                //  param(
-                //      ***
-                //  )
-                // this way it is not required to write a parser for the parameter section
-                if(!CodeSection && tline.StartsWith("param(")){
-                    paramSection = true;
-                    yield return line;
-                    continue;
                 }
                 yield return line;
             }
