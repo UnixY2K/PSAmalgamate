@@ -105,7 +105,9 @@ public class Module
 
     public class ModuleReader
     {
-        private StreamReader FileStream;
+        private readonly StreamReader FileStream;
+        public bool CodeSection { get; private set; } = false;
+        private bool paramSection = false;
 
         internal ModuleReader(FileInfo fileInfo)
         {
@@ -119,9 +121,37 @@ public class Module
             {
                 var line = await FileStream.ReadLineAsync()??"";
                 var tline = line.TrimStart();
-                
+                if(paramSection){
+                    if(tline.StartsWith(')')){
+                        yield return line;
+                        paramSection = false;
+                        CodeSection = true;
+                        continue;
+                    }
+                }
                 if (tline.StartsWith("using module"))
                 {
+                    // skip modules
+                    continue;
+                }
+                else if(tline.StartsWith('#'))
+                {
+                    // skip requires section, they should be handled outside here
+                    if(tline.StartsWith("#requires"))
+                    {
+                        continue;
+                    }
+                    // return comments here as they are not part of the code section
+                    yield return line;
+                }
+                // for now we will only support params like this
+                //  param(
+                //      ***
+                //  )
+                // this way it is not required to write a parser for the parameter section
+                if(!CodeSection && tline.StartsWith("param(")){
+                    paramSection = true;
+                    yield return line;
                     continue;
                 }
                 yield return line;
