@@ -29,7 +29,8 @@ static void WriteModuleDeps(Module module, string indent = "", bool isLast = tru
     foreach (var child in module.RequiredModules)
         WriteModuleDeps(child, indent, child == lastChild);
 }
-static void WriteModuleHierarchy(Module module){
+static void WriteModuleHierarchy(Module module)
+{
     var moduleHierarchy = module.GetModuleHierarchy();
     foreach (var currentModule in moduleHierarchy)
     {
@@ -153,7 +154,21 @@ rootCommand.SetHandler(async (file, output, directory) =>
 
     // truncate the file
     await File.WriteAllTextAsync(output.FullName, "");
+    using (FileStream fs = File.OpenWrite(output.FullName))
+    {
+        var moduleHierarchy = rootFile.GetModuleHierarchy();
+        foreach (var currentModule in moduleHierarchy)
+        {
+            await fs.WriteAsync(System.Text.Encoding.Unicode.GetBytes($"### module {currentModule.Name} ###\n"));
+            var moduleStream = Module.GetFilteredTextReader(currentModule);
+            await foreach (var line in moduleStream.ReadLine())
+            {
+                await fs.WriteAsync(System.Text.Encoding.Unicode.GetBytes(line + '\n'));
+            }
 
+        }
+
+    }
 
 }, fileOption, outputOption, directoryOption);
 await rootCommand.InvokeAsync(args);

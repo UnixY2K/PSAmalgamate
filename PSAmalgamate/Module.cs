@@ -1,3 +1,6 @@
+
+using System.Security.Cryptography.X509Certificates;
+
 namespace PSAmalgamate;
 public class Module
 {
@@ -68,6 +71,10 @@ public class Module
         return modulelist;
     }
 
+    public static ModuleReader GetFilteredTextReader(Module currentModule)
+    {
+        return new ModuleReader(currentModule.FileInfo);
+    }
 
     public List<Module> GetModuleHierarchy()
     {
@@ -96,4 +103,29 @@ public class Module
     }
 
 
+    public class ModuleReader
+    {
+        private StreamReader FileStream;
+
+        internal ModuleReader(FileInfo fileInfo)
+        {
+            FileStream = File.OpenText(fileInfo.FullName);
+        }
+
+        public async IAsyncEnumerable<string> ReadLine()
+        {
+            // read the file line by line
+            while (!FileStream.EndOfStream)
+            {
+                var line = await FileStream.ReadLineAsync()??"";
+                var tline = line.TrimStart();
+                
+                if (tline.StartsWith("using module"))
+                {
+                    continue;
+                }
+                yield return line;
+            }
+        }
+    }
 }

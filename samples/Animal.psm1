@@ -1,6 +1,5 @@
 #requires -Version 5.1
 
-
 class Animal {
     [string] $name = "Animal"
     Animal([string] $name) {
