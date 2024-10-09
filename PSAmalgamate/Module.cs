@@ -50,7 +50,12 @@ public class Module
                     // check if the module is relative to the current file
                     if (modulePath.StartsWith('.'))
                     {
-                        var resolvedModulePath = Path.GetFullPath(Path.Combine(workingDirectory.FullName, modulePath));
+                        // first resolve the module to a path relative to the file that includes it
+                        // then resolve it to the specified working directory
+
+                        var resolvedModulePath = new Uri(Path.GetFullPath(modulePath.Replace(nonNativePathSeparator, nativePathSeparator), file.DirectoryName!)).AbsolutePath;
+                        resolvedModulePath = Path.GetFullPath(resolvedModulePath, workingDirectory.FullName);
+
                         // check if the file exist
                         if (!File.Exists(resolvedModulePath))
                         {
@@ -118,7 +123,7 @@ public class Module
         public async IAsyncEnumerable<string> ReadLineAsync()
         {
             // read the file line by line
-            
+
             while (!peekReader.EndOfStream)
             {
                 var line = await peekReader.ReadLineAsync() ?? "";
@@ -144,7 +149,8 @@ public class Module
                     //      ***
                     //  )
                     // this way it is not required to write a parser for the parameter section
-                    if(ptLine.StartsWith("param(")){
+                    if (ptLine.StartsWith("param("))
+                    {
                         paramSection = true;
                         continue;
                     }
@@ -173,4 +179,7 @@ public class Module
             }
         }
     }
+
+    private static readonly char nativePathSeparator = Path.DirectorySeparatorChar;
+    private static readonly char nonNativePathSeparator = Path.DirectorySeparatorChar == '/' ? '\\' : '/';
 }
