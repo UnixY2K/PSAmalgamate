@@ -1,7 +1,7 @@
 using System.CommandLine;
 using PSAmalgamate;
 
-static void WriteError(Object? error)
+static void WriteError(object? error)
 {
     // get the current console color
     var originalColor = Console.ForegroundColor;
@@ -116,12 +116,38 @@ var directoryOption = new Option<DirectoryInfo?>(
 directoryOption.AddAlias("-d");
 directoryOption.SetDefaultValue(new DirectoryInfo(Directory.GetCurrentDirectory()));
 
+// write module deps switch
+var showModuleDepsSwitch = new Option<bool>(
+    name: "--show-module-deps",
+    description: "Show the module dependencies",
+    parseArgument: _ => true
+    )
+{
+    AllowMultipleArgumentsPerToken = false,
+    Arity = ArgumentArity.Zero
+};
+
+
+// write module hierarchy switch
+var showModuleHierarchySwitch = new Option<bool>(
+    name: "--show-module-hierarchy",
+    description: "Show the module hierarchy",
+        parseArgument: _ => true
+    )
+{
+    AllowMultipleArgumentsPerToken = false,
+    Arity = ArgumentArity.Zero
+};
+
+
 var rootCommand = new RootCommand("Amalgamate powershell files into a single file");
 rootCommand.AddOption(fileOption);
 rootCommand.AddOption(outputOption);
 rootCommand.AddOption(directoryOption);
+rootCommand.AddOption(showModuleDepsSwitch);
+rootCommand.AddOption(showModuleHierarchySwitch);
 int returnCode = 0;
-rootCommand.SetHandler(async (file, output, directory) =>
+rootCommand.SetHandler(async (file, output, directory, showModuleDeps, showModuleHierarchy) =>
 {
     if (file is null || output is null || directory is null)
     {
@@ -149,9 +175,14 @@ rootCommand.SetHandler(async (file, output, directory) =>
         return;
     }
 
-    WriteModuleDeps(rootFile);
-    WriteModuleHierarchy(rootFile);
-
+    if (showModuleDeps)
+    {
+        WriteModuleDeps(rootFile);
+    }
+    if (showModuleHierarchy)
+    {
+        WriteModuleHierarchy(rootFile);
+    }
     // truncate the file
     await File.WriteAllTextAsync(output.FullName, "");
     using (FileStream fs = File.OpenWrite(output.FullName))
@@ -209,7 +240,7 @@ rootCommand.SetHandler(async (file, output, directory) =>
 
     }
 
-}, fileOption, outputOption, directoryOption);
+}, fileOption, outputOption, directoryOption, showModuleDepsSwitch, showModuleHierarchySwitch);
 await rootCommand.InvokeAsync(args);
 
 return returnCode;
