@@ -9,6 +9,7 @@ public class Module
     public string Name { get => Path.GetFileNameWithoutExtension(FileInfo.Name); }
     public string FilePath { get => FileInfo.FullName; }
     public List<Module> RequiredModules { get; } = [];
+    public List<string> RequiredNamespaces { get; } = [];
     public List<string> RequiredNativeModules { get; } = [];
 
     public static async Task<Module> LoadModuleInfo(FileInfo file, DirectoryInfo workingDirectory)
@@ -17,6 +18,7 @@ public class Module
         {
             FileInfo = file
         };
+        var requiredNamespaces = await LoadRequiredNamespaces(file);
         var requiredModules = await LoadRequiredModules(file, workingDirectory, false);
         foreach (var requiredModule in requiredModules)
         {
@@ -29,8 +31,8 @@ public class Module
             {
                 module.RequiredNativeModules.Add(requiredModule);
             }
-
         }
+        module.RequiredNamespaces.AddRange(requiredNamespaces);
         return module;
     }
     public static async Task<List<string>> LoadRequiredModules(FileInfo file, DirectoryInfo workingDirectory, bool onlyFiles = true)
@@ -43,7 +45,7 @@ public class Module
             {
                 case "":
                 case null:
-                case string l when l.StartsWith('#'):
+                case string l when l.StartsWith('#') || l.StartsWith("using namespace"):
                     continue;
                 case string l when l.StartsWith("using module"):
                     string modulePath = l["using module".Length..].Trim();
@@ -74,6 +76,29 @@ public class Module
             }
         }
         return modulelist;
+    }
+
+    private static async Task<List<string>> LoadRequiredNamespaces(FileInfo file)
+    {
+        var requiredNamespaces = new List<string>();
+        var lines = await File.ReadAllLinesAsync(file.FullName);
+        foreach (var line in lines)
+        {
+            switch (line.Trim())
+            {
+                case "":
+                case null:
+                case string l when l.StartsWith('#') || l.StartsWith("using module"):
+                    continue;
+                case string l when l.StartsWith("using namespace"):
+                    var namespaceLine = l["using namespace".Length..].Trim();
+                    requiredNamespaces.Add(namespaceLine);
+                    break;
+                default:
+                    break;
+            }
+        }
+        return requiredNamespaces;
     }
 
     public static ModuleReader GetFilteredTextReader(Module currentModule)
@@ -155,12 +180,12 @@ public class Module
                         continue;
                     }
 
-                    if (!(ptLine.StartsWith("using module") || ptLine.StartsWith('#') || ptLine.Length == 0))
+                    if (!(ptLine.StartsWith("using module") || ptLine.StartsWith("using namespace") || ptLine.StartsWith('#') || ptLine.Length == 0))
                     {
                         CodeSection = true;
                     }
                 }
-                if (tLine.StartsWith("using module"))
+                if (tLine.StartsWith("using module") || tLine.StartsWith("using namespace"))
                 {
                     // skip modules
                     continue;
@@ -174,6 +199,7 @@ public class Module
                     }
                     // return comments here as they are not part of the code section
                     yield return line;
+                    continue;
                 }
                 yield return line;
             }

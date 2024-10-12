@@ -158,39 +158,53 @@ rootCommand.SetHandler(async (file, output, directory) =>
     {
         var moduleHierarchy = rootFile.GetModuleHierarchy();
 
-        await fs.WriteAsync(System.Text.Encoding.Unicode.GetBytes("### main file pre code section ###\n"));
+        await fs.WriteAsync(System.Text.Encoding.UTF8.GetBytes("### main file pre code section ###\n"));
+
+        await fs.WriteAsync(System.Text.Encoding.UTF8.GetBytes("### begin namespace injection ###\n"));
+        var namespaces = new HashSet<string>();
+        foreach (var currentModule in moduleHierarchy)
+        {
+            await fs.WriteAsync(System.Text.Encoding.UTF8.GetBytes($"### module {currentModule.Name} ###\n"));
+            foreach (var moduleNamespace in currentModule.RequiredNamespaces)
+            {
+                if (!namespaces.Add(moduleNamespace))
+                {
+                    await fs.WriteAsync(System.Text.Encoding.UTF8.GetBytes("#"));
+                }
+                await fs.WriteAsync(System.Text.Encoding.UTF8.GetBytes($"using namespace {moduleNamespace}\n"));
+            }
+        }
+        await fs.WriteAsync(System.Text.Encoding.UTF8.GetBytes("### end namespace injection ###\n"));
 
         var rootModuleStream = Module.GetFilteredTextReader(rootFile);
         // iterate until reach code section
         await foreach (var line in rootModuleStream.ReadLineAsync())
         {
-            
-            await fs.WriteAsync(System.Text.Encoding.Unicode.GetBytes(line + '\n'));
+            await fs.WriteAsync(System.Text.Encoding.UTF8.GetBytes(line + '\n'));
             if (rootModuleStream.CodeSection)
             {
                 break;
             }
         }
 
-
-        await fs.WriteAsync(System.Text.Encoding.Unicode.GetBytes("### begin module injection ###\n"));
+        await fs.WriteAsync(System.Text.Encoding.UTF8.GetBytes("### begin module injection ###\n"));
         foreach (var currentModule in moduleHierarchy)
         {
-            await fs.WriteAsync(System.Text.Encoding.Unicode.GetBytes($"### module {currentModule.Name} ###\n"));
+            await fs.WriteAsync(System.Text.Encoding.UTF8.GetBytes($"### module {currentModule.Name} ###\n"));
             var moduleStream = Module.GetFilteredTextReader(currentModule);
             await foreach (var line in moduleStream.ReadLineAsync())
             {
-                await fs.WriteAsync(System.Text.Encoding.Unicode.GetBytes(line + '\n'));
+                await fs.WriteAsync(System.Text.Encoding.UTF8.GetBytes(line + '\n'));
             }
         }
-        await fs.WriteAsync(System.Text.Encoding.Unicode.GetBytes("### end module injection ###\n"));
+        await fs.WriteAsync(System.Text.Encoding.UTF8.GetBytes("### end module injection ###\n"));
 
-        await fs.WriteAsync(System.Text.Encoding.Unicode.GetBytes("### main file code section ###\n"));
+        await fs.WriteAsync(System.Text.Encoding.UTF8.GetBytes("### main file code section ###\n"));
 
         // now continue with the remaining code section
         await foreach (var line in rootModuleStream.ReadLineAsync())
         {
-            await fs.WriteAsync(System.Text.Encoding.Unicode.GetBytes(line + '\n'));
+            await fs.WriteAsync(System.Text.Encoding.UTF8.GetBytes(line + '\n'));
         }
 
     }
