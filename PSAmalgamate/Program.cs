@@ -161,7 +161,6 @@ rootCommand.SetHandler(async (file, output, directory, showModuleDeps, showModul
     // iterate over the file and find the modules
     var modules = new List<string>();
 
-    Console.WriteLine("loading module");
     Module rootFile;
     try
     {
@@ -184,7 +183,24 @@ rootCommand.SetHandler(async (file, output, directory, showModuleDeps, showModul
         WriteModuleHierarchy(rootFile);
     }
     // truncate the file
-    await File.WriteAllTextAsync(output.FullName, "");
+    try
+    {
+        await File.WriteAllTextAsync(output.FullName, "");
+    }
+    catch (Exception ex) when (ex is UnauthorizedAccessException || ex is IOException)
+    {
+        WriteError($"An error occurred while truncating output file.\n{ex.Message}");
+        returnCode = -1;
+    }
+    catch (Exception ex)
+    {
+        WriteError($"An unexpected error occurred.\n{ex.Message}");
+        returnCode = -1;
+    }
+    if (returnCode != 0)
+    {
+        return;
+    }
     using (FileStream fs = File.OpenWrite(output.FullName))
     {
         var moduleHierarchy = rootFile.GetModuleHierarchy();
