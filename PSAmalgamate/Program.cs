@@ -171,6 +171,7 @@ rootCommand.SetHandler(async (file, output, directory, showModuleDeps, showModul
     {
         WriteError("an error ocurred while loading the file");
         WriteError($"{ex.GetType().FullName}: {ex.Message}");
+        returnCode = 1;
         return;
     }
 
