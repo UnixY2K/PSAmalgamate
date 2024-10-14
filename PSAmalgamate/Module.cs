@@ -64,8 +64,10 @@ public class Module
         List<Exception> exceptions = [];
         List<string> modulelist = [];
         var lines = await File.ReadAllLinesAsync(file.FullName);
+        int lineNumber = 0;
         foreach (var line in lines)
         {
+            lineNumber++;
             switch (line.Trim())
             {
                 case "":
@@ -86,7 +88,7 @@ public class Module
                         // check if the file exist
                         if (!File.Exists(resolvedModulePath))
                         {
-                            exceptions.Add(new ModuleNotFoundException(resolvedModulePath, modulePath));
+                            exceptions.Add(new ModuleNotFoundException(resolvedModulePath, modulePath, lineNumber));
                         }
                         modulePath = resolvedModulePath;
                         modulelist.Add(modulePath);
@@ -161,27 +163,19 @@ public class Module
         return modules;
     }
 
-    public class ModuleNotFoundException : Exception
+    public class ModuleNotFoundException(Module? module, string resolvedModulePath, string modulePath, int lineNumber) : Exception
     {
-        public Module? Module { get; set; }
-        public string ResolvedModulePath { get; }
-        public string ModulePath { get; }
+        public Module? Module { get; set; } = module;
+        public string ResolvedModulePath { get; } = resolvedModulePath;
+        public string ModulePath { get; } = modulePath;
+        public int LineNumber { get; } = lineNumber;
 
-        public ModuleNotFoundException(string resolvedModulePath, string modulePath) :
-            base($"module not found: {modulePath} resolved to {resolvedModulePath}")
+        public ModuleNotFoundException(string resolvedModulePath, string modulePath, int lineNumber) :
+            this(null, resolvedModulePath, modulePath, lineNumber)
         {
-            ResolvedModulePath = resolvedModulePath;
-            ModulePath = modulePath;
-        }
-        public ModuleNotFoundException(Module? module, string resolvedModulePath, string modulePath) :
-            base($"{(module is null ? "" : $"in module {module.Name} ({module.FilePath}):\n")}module not found: {modulePath} resolved to {resolvedModulePath}")
-        {
-            Module = module;
-            ResolvedModulePath = resolvedModulePath;
-            ModulePath = modulePath;
         }
 
-        public override string Message => $"{(Module is null ? "" : $"in module {Module.Name} ({Module.FilePath}):\n")}module not found: {ModulePath} resolved to {ResolvedModulePath}";
+        public override string Message => $"{(Module is null ? "" : $"in module {Module.Name} ({Module.FilePath}:{LineNumber})\n")}module not found: {ModulePath} resolved to {ResolvedModulePath}";
 
     }
 
