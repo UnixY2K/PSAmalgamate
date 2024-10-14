@@ -12,15 +12,18 @@ public class Module
     public List<string> RequiredNamespaces { get; } = [];
     public List<string> RequiredNativeModules { get; } = [];
 
-    public static async Task<Module> LoadModuleInfo(FileInfo file, DirectoryInfo workingDirectory)
+    public static async Task<Module> LoadModuleInfo(FileInfo file, DirectoryInfo workingDirectory, bool skipRequiredModules = false)
     {
         var module = new Module()
         {
             FileInfo = file
         };
         var requiredNamespaces = await LoadRequiredNamespaces(file);
+        module.RequiredNamespaces.AddRange(requiredNamespaces);
 
-        try
+
+        List<Exception> exceptions = [];
+        if (!skipRequiredModules)
         {
             var requiredModules = await LoadRequiredModules(file, workingDirectory, false);
             foreach (var requiredModule in requiredModules)
@@ -28,37 +31,34 @@ public class Module
                 // check if the module is a native module or a script module
                 if (File.Exists(requiredModule))
                 {
-                    module.RequiredModules.Add(await LoadModuleInfo(new FileInfo(requiredModule), workingDirectory));
+                    try
+                    {
+                        module.RequiredModules.Add(await LoadModuleInfo(new FileInfo(requiredModule), workingDirectory, skipRequiredModules));
+                    }
+                    catch (AggregateException exs)
+                    {
+                        exceptions.AddRange(exs.InnerExceptions);
+                        Module stubModule = new()
+                        {
+                            FileInfo = new FileInfo(requiredModule)
+                        };
+                        module.RequiredModules.Add(stubModule);
+                    }
                 }
                 else
                 {
                     module.RequiredNativeModules.Add(requiredModule);
                 }
             }
-            module.RequiredNamespaces.AddRange(requiredNamespaces);
-            return module;
         }
-        catch (AggregateException exs)
+
+        if (exceptions.Count > 0)
         {
-            List<Exception> exceptions = [];
-            foreach (var ex in exs.InnerExceptions)
-            {
-                switch (ex)
-                {
-                    case ModuleNotFoundException moduleNotFoundEx:
-                        // add module information
-                        moduleNotFoundEx.Module = module;
-                        exceptions.Add(moduleNotFoundEx);
-                        break;
-                    default:
-                        // pass the exception
-                        exceptions.Add(ex);
-                        break;
-                }
-            }
             throw new AggregateException(exceptions);
         }
+        return module;
     }
+
     public static async Task<List<string>> LoadRequiredModules(FileInfo file, DirectoryInfo workingDirectory, bool onlyFiles = true)
     {
         List<Exception> exceptions = [];
@@ -88,7 +88,11 @@ public class Module
                         // check if the file exist
                         if (!File.Exists(resolvedModulePath))
                         {
-                            exceptions.Add(new ModuleNotFoundException(resolvedModulePath, modulePath, lineNumber));
+                            var module = new Module()
+                            {
+                                FileInfo = file
+                            };
+                            exceptions.Add(new ModuleNotFoundException(module, resolvedModulePath, modulePath, lineNumber));
                         }
                         modulePath = resolvedModulePath;
                         modulelist.Add(modulePath);
