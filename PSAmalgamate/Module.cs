@@ -19,24 +19,49 @@ public class Module
             FileInfo = file
         };
         var requiredNamespaces = await LoadRequiredNamespaces(file);
-        var requiredModules = await LoadRequiredModules(file, workingDirectory, false);
-        foreach (var requiredModule in requiredModules)
+
+        try
         {
-            // check if the module is a native module or a script module
-            if (File.Exists(requiredModule))
+            var requiredModules = await LoadRequiredModules(file, workingDirectory, false);
+            foreach (var requiredModule in requiredModules)
             {
-                module.RequiredModules.Add(await LoadModuleInfo(new FileInfo(requiredModule), workingDirectory));
+                // check if the module is a native module or a script module
+                if (File.Exists(requiredModule))
+                {
+                    module.RequiredModules.Add(await LoadModuleInfo(new FileInfo(requiredModule), workingDirectory));
+                }
+                else
+                {
+                    module.RequiredNativeModules.Add(requiredModule);
+                }
             }
-            else
-            {
-                module.RequiredNativeModules.Add(requiredModule);
-            }
+            module.RequiredNamespaces.AddRange(requiredNamespaces);
+            return module;
         }
-        module.RequiredNamespaces.AddRange(requiredNamespaces);
-        return module;
+        catch (AggregateException exs)
+        {
+            List<Exception> exceptions = [];
+            foreach (var ex in exs.InnerExceptions)
+            {
+                switch (ex)
+                {
+                    case ModuleNotFoundException moduleNotFoundEx:
+                        // add module information
+                        moduleNotFoundEx.Module = module;
+                        exceptions.Add(moduleNotFoundEx);
+                        break;
+                    default:
+                        // pass the exception
+                        exceptions.Add(ex);
+                        break;
+                }
+            }
+            throw new AggregateException(exceptions);
+        }
     }
     public static async Task<List<string>> LoadRequiredModules(FileInfo file, DirectoryInfo workingDirectory, bool onlyFiles = true)
     {
+        List<Exception> exceptions = [];
         List<string> modulelist = [];
         var lines = await File.ReadAllLinesAsync(file.FullName);
         foreach (var line in lines)
@@ -61,7 +86,7 @@ public class Module
                         // check if the file exist
                         if (!File.Exists(resolvedModulePath))
                         {
-                            throw new FileNotFoundException($"module not found in the following path: {resolvedModulePath}");
+                            exceptions.Add(new ModuleNotFoundException(resolvedModulePath, modulePath));
                         }
                         modulePath = resolvedModulePath;
                         modulelist.Add(modulePath);
@@ -74,6 +99,10 @@ public class Module
                 default:
                     break;
             }
+        }
+        if (exceptions.Count > 0)
+        {
+            throw new AggregateException(exceptions);
         }
         return modulelist;
     }
@@ -132,6 +161,29 @@ public class Module
         return modules;
     }
 
+    public class ModuleNotFoundException : Exception
+    {
+        public Module? Module { get; set; }
+        public string ResolvedModulePath { get; }
+        public string ModulePath { get; }
+
+        public ModuleNotFoundException(string resolvedModulePath, string modulePath) :
+            base($"module not found: {modulePath} resolved to {resolvedModulePath}")
+        {
+            ResolvedModulePath = resolvedModulePath;
+            ModulePath = modulePath;
+        }
+        public ModuleNotFoundException(Module? module, string resolvedModulePath, string modulePath) :
+            base($"{(module is null ? "" : $"in module {module.Name} ({module.FilePath}):\n")}module not found: {modulePath} resolved to {resolvedModulePath}")
+        {
+            Module = module;
+            ResolvedModulePath = resolvedModulePath;
+            ModulePath = modulePath;
+        }
+
+        public override string Message => $"{(Module is null ? "" : $"in module {Module.Name} ({Module.FilePath}):\n")}module not found: {ModulePath} resolved to {ResolvedModulePath}";
+
+    }
 
     public class ModuleReader
     {

@@ -167,6 +167,16 @@ rootCommand.SetHandler(async (file, output, directory, showModuleDeps, showModul
         var moduleList = await ModuleStore.LoadModuleStore(file, directory);
         rootFile = moduleList.Modules[file.FullName];
     }
+    catch (AggregateException exs)
+    {
+        WriteError("the following errors ocurred:");
+        foreach (var ex in exs.InnerExceptions)
+        {
+            WriteError($" - {ex.Message}");
+        }
+        returnCode = 1;
+        return;
+    }
     catch (Exception ex)
     {
         WriteError("an error ocurred while loading the file");
