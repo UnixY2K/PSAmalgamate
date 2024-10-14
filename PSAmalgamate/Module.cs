@@ -12,7 +12,7 @@ public class Module
     public List<string> RequiredNamespaces { get; } = [];
     public List<string> RequiredNativeModules { get; } = [];
 
-    public static async Task<Module> LoadModuleInfo(FileInfo file, DirectoryInfo workingDirectory, bool skipRequiredModules = false)
+    public static async Task<Module> LoadModuleInfo(FileInfo file, DirectoryInfo workingDirectory, bool loadFileSubModules = false)
     {
         var module = new Module()
         {
@@ -23,17 +23,32 @@ public class Module
 
 
         List<Exception> exceptions = [];
-        if (!skipRequiredModules)
+
+        var requiredModules = await LoadRequiredModules(file, workingDirectory, false, loadFileSubModules);
+
+        foreach (var requiredModule in requiredModules)
         {
-            var requiredModules = await LoadRequiredModules(file, workingDirectory, false);
-            foreach (var requiredModule in requiredModules)
+            if (Path.IsPathFullyQualified(requiredModule))
             {
-                // check if the module is a native module or a script module
-                if (File.Exists(requiredModule))
+                if (!loadFileSubModules)
+                {
+                    if (!File.Exists(requiredModule))
+                    {
+                        // TODO: make a mechanism to add and mark failed modules
+                        // TODO: get the original module path and line
+                        var failedModuleName = Path.GetFileName(requiredModule);
+                        exceptions.Add(new ModuleNotFoundException(module, requiredModule, failedModuleName, 0));
+                    }
+                    else
+                    {
+                        module._requiredModulePaths.Add(requiredModule);
+                    }
+                }
+                else if (File.Exists(requiredModule))
                 {
                     try
                     {
-                        module.RequiredModules.Add(await LoadModuleInfo(new FileInfo(requiredModule), workingDirectory, skipRequiredModules));
+                        module.RequiredModules.Add(await LoadModuleInfo(new FileInfo(requiredModule), workingDirectory, loadFileSubModules));
                     }
                     catch (AggregateException exs)
                     {
@@ -45,12 +60,13 @@ public class Module
                         module.RequiredModules.Add(stubModule);
                     }
                 }
-                else
-                {
-                    module.RequiredNativeModules.Add(requiredModule);
-                }
+            }
+            else
+            {
+                module.RequiredNativeModules.Add(requiredModule);
             }
         }
+
 
         if (exceptions.Count > 0)
         {
@@ -59,7 +75,7 @@ public class Module
         return module;
     }
 
-    public static async Task<List<string>> LoadRequiredModules(FileInfo file, DirectoryInfo workingDirectory, bool onlyFiles = true)
+    public static async Task<List<string>> LoadRequiredModules(FileInfo file, DirectoryInfo workingDirectory, bool onlyFiles = true, bool checkFileModules = true)
     {
         List<Exception> exceptions = [];
         List<string> modulelist = [];
@@ -77,7 +93,7 @@ public class Module
                 case string l when l.StartsWith("using module"):
                     string modulePath = l["using module".Length..].Trim();
                     // check if the module is relative to the current file
-                    if (modulePath.StartsWith('.'))
+                    if (Path.IsPathFullyQualified(modulePath) || modulePath.StartsWith('.'))
                     {
                         // first resolve the module to a path relative to the file that includes it
                         // then resolve it to the specified working directory
@@ -85,8 +101,8 @@ public class Module
                         var resolvedModulePath = new Uri(Path.GetFullPath(modulePath.Replace(nonNativePathSeparator, nativePathSeparator), file.DirectoryName!)).AbsolutePath;
                         resolvedModulePath = Path.GetFullPath(resolvedModulePath, workingDirectory.FullName);
 
-                        // check if the file exist
-                        if (!File.Exists(resolvedModulePath))
+
+                        if (checkFileModules && !File.Exists(resolvedModulePath))
                         {
                             var module = new Module()
                             {

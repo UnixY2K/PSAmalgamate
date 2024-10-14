@@ -22,12 +22,13 @@ namespace PSAmalgamate
                         // ignore the element
                         continue;
                     }
-                    var currentModule = await Module.LoadModuleInfo(new FileInfo(unloadedModule), workingDirectory);
+                    var currentModule = await Module.LoadModuleInfo(new FileInfo(unloadedModule), workingDirectory, false);
                     modulelist._modules.Add(currentModule.FilePath, currentModule);
                     foreach (var currentNextModule in currentModule._requiredModulePaths)
                     {
                         if (!modulelist.Modules.ContainsKey(currentNextModule))
                         {
+                            // check if the module exist, if not launch a ModuleNotFoundException
                             nextUnloadedModules.Add(currentNextModule);
                         }
                     }
