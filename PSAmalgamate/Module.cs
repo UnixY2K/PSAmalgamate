@@ -172,13 +172,13 @@ public class Module
             {
                 continue;
             }
-            modules.AddRange(requiredModule.GetModuleHierarchyRecursively(ref addedModules));
-            // if the same module is found again just ignore it
-            if (!addedModules.Contains(requiredModule.FilePath))
-            {
-                modules.Add(requiredModule);
-                addedModules.Add(requiredModule.FilePath);
-            }
+            // once found set the module as added to avoid infinite recursion
+            addedModules.Add(requiredModule.FilePath);
+            // get the list of modules from the required module
+            var requiredModuleHierarchy = requiredModule.GetModuleHierarchyRecursively(ref addedModules);
+            modules.AddRange(requiredModuleHierarchy);
+            // then add the module itself
+            modules.Add(requiredModule);
         }
         return modules;
     }

@@ -10,24 +10,45 @@ static void WriteError(object? error)
     Console.ForegroundColor = originalColor;
 }
 
-static void WriteModuleDeps(Module module, string indent = "", bool isLast = true)
+static void WriteModuleDeps(Module module)
 {
+    var visitedModules = new HashSet<string>();
+    WriteModuleDepsRecursively(module, "", true, ref visitedModules);
+}
+static void WriteModuleDepsRecursively(Module module, string indent, bool isLast, ref HashSet<string> visitedModules)
+{
+    // mark outselves as added
     var marker = isLast ? "└──" : "├──";
     var originalColor = Console.ForegroundColor;
     Console.ForegroundColor = ConsoleColor.Green;
     Console.Write(indent);
     Console.Write(marker);
     Console.ForegroundColor = originalColor;
+
     Console.Write(module.Name);
+
     Console.WriteLine();
 
 
     indent += isLast ? "   " : "│  ";
 
     var lastChild = module.RequiredModules.LastOrDefault();
-
+ 
+    visitedModules.Add(module.FilePath);
     foreach (var child in module.RequiredModules)
-        WriteModuleDeps(child, indent, child == lastChild);
+    {
+        if (!visitedModules.Contains(child.FilePath))
+        {
+            WriteModuleDepsRecursively(child, indent, child == lastChild, ref visitedModules);
+        }
+        else{
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.Write(indent);
+            Console.Write(child == lastChild ? "└──" : "├──");
+            Console.ForegroundColor = originalColor;
+            Console.WriteLine(child.Name);
+        }
+    }
 }
 static void WriteModuleHierarchy(Module module)
 {
