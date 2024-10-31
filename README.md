@@ -8,8 +8,15 @@ this tool can be compiled and then installed globally using the following comman
 
 ```sh
 dotnet pack
-dotnet tool install --global --add-source ./nupkg PSAmalgamate
+dotnet tool install --global --add-source ./PSAmalgamate/nupkg PSAmalgamate
 ```
 
 > Note: keep in mind that this requires to have the dotnet tool directly available in your path.
 
+## usage
+
+you can run without any arguments to get the help message:
+
+```sh
+PSAmalgamate
+```
